@@ -4,9 +4,7 @@ repo_name: "custom_jvp_vjp_tutorials"
 
 nav:
 
-  - JVP vs VJP in Nutshell: index.md
-  - VJP in JAX vs Torch: index.md
-  - Double backward: index.md
+  - Welcome: ../README.md
 
 
 
@@ -71,4 +69,4 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 watch:
-  - custom_jvp_jvp_tutorials
+  - custom_jvp_vjp_tutorials
