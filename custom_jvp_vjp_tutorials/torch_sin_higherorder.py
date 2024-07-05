@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 import torch
-import torch.autograd.gradcheck
 
 # This tutorial is based on
 # https://pytorch.org/tutorials/intermediate/custom_function_double_backward_tutorial.html
@@ -35,6 +34,7 @@ class Sin(torch.autograd.Function):
     @staticmethod
     def backward(ctx: Any, grad_out: torch.Tensor) -> tuple:
         (x,) = ctx.saved_tensors
+        # We return the output of `SinBackward` which is the first derivative
         return SinBackward.apply(grad_out, x)
 
 
@@ -48,9 +48,9 @@ class SinBackward(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_out: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         sav_grad_out, x = ctx.saved_tensors
-        dfdxx = sin_bwd_bwd(grad_out, sav_grad_out, x)
-        dfdx = sin_bwd(grad_out, x)
-        return dfdx, dfdxx
+        # We return a tuple of tensors containing gradients for each input to `SinBackward.forward`
+        # Hence, dfdx for `grad_out` and dfdxx for `x`
+        return sin_bwd(grad_out, x), sin_bwd_bwd(grad_out, sav_grad_out, x)
 
 
 if __name__ == "__main__":
@@ -66,4 +66,5 @@ if __name__ == "__main__":
     dfdxx_ad = torch.autograd.grad(dfdx_ad, x, torch.ones_like(dfdx_ad))[0]
     assert torch.allclose(dfdx, dfdx_ad)
     assert torch.allclose(dfdxx, dfdxx_ad)
+    assert torch.autograd.gradcheck(Sin.apply, x)
     assert torch.autograd.gradgradcheck(Sin.apply, x)

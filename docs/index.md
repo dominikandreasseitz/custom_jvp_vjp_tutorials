@@ -76,7 +76,6 @@ from __future__ import annotations
 from typing import Any
 
 import torch
-import torch.autograd.gradcheck
 
 # This tutorial is based on
 # https://pytorch.org/tutorials/intermediate/custom_function_double_backward_tutorial.html
@@ -108,6 +107,7 @@ class Sin(torch.autograd.Function):
     @staticmethod
     def backward(ctx: Any, grad_out: torch.Tensor) -> tuple:
         (x,) = ctx.saved_tensors
+        # We return the output of `SinBackward` which is the first derivative
         return SinBackward.apply(grad_out, x)
 
 
@@ -121,25 +121,27 @@ class SinBackward(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_out: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         sav_grad_out, x = ctx.saved_tensors
-        dfdxx = sin_bwd_bwd(grad_out, sav_grad_out, x)
-        dfdx = sin_bwd(grad_out, x)
-        return dfdx, dfdxx
+        # We return a tuple of tensors containing gradients for each input to `SinBackward.forward`
+        # Hence, dfdx for `grad_out` and dfdxx for `x`
+        return sin_bwd(grad_out, x), sin_bwd_bwd(grad_out, sav_grad_out, x)
 
 
+if __name__ == "__main__":
+    x = torch.tensor(0.5, dtype=torch.float64, requires_grad=True)
+    res = Sin.apply(x)
+    dfdx = torch.autograd.grad(res, x, torch.ones_like(res), create_graph=True)[0]
+    dfdxx = torch.autograd.grad(dfdx, x, torch.ones_like(dfdx))[0]
 
-x = torch.tensor(0.5, dtype=torch.float64, requires_grad=True)
-res = Sin.apply(x)
-dfdx = torch.autograd.grad(res, x, torch.ones_like(res), create_graph=True)[0]
-dfdxx = torch.autograd.grad(dfdx, x, torch.ones_like(dfdx))[0]
+    res_ad = torch.sin(x)
+    dfdx_ad = torch.autograd.grad(
+        res_ad, x, torch.ones_like(res_ad), create_graph=True
+    )[0]
+    dfdxx_ad = torch.autograd.grad(dfdx_ad, x, torch.ones_like(dfdx_ad))[0]
+    assert torch.allclose(dfdx, dfdx_ad)
+    assert torch.allclose(dfdxx, dfdxx_ad)
+    assert torch.autograd.gradcheck(Sin.apply, x)
+    assert torch.autograd.gradgradcheck(Sin.apply, x)
 
-res_ad = torch.sin(x)
-dfdx_ad = torch.autograd.grad(
-    res_ad, x, torch.ones_like(res_ad), create_graph=True
-)[0]
-dfdxx_ad = torch.autograd.grad(dfdx_ad, x, torch.ones_like(dfdx_ad))[0]
-assert torch.allclose(dfdx, dfdx_ad)
-assert torch.allclose(dfdxx, dfdxx_ad)
-assert torch.autograd.gradgradcheck(Sin.apply, x)
 ```
 ## JAX
 [Custom JAX derivative rules](https://jax.readthedocs.io/en/latest/notebooks/Custom_derivative_rules_for_Python_code.html)
